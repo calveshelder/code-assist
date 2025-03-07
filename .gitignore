@@ -1,0 +1,68 @@
+# Rust build directory
+/target/
+
+# Generated documentation
+/doc/
+
+# Cargo.lock is ignored for libraries but kept for applications
+# Uncomment the next line if this is a library rather than an application
+# Cargo.lock
+
+# Backup files
+**/*.rs.bk
+**/*.bk
+*.swp
+*~
+
+# IDE specific files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.vs/
+.code-workspace
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux specific files
+.directory
+.Trash-*
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Test binaries
+test_*.exe
+*_test.exe
+*.test
+
+# Flamegraph profiling output
+flamegraph.svg
+perf.data
+perf.data.old
+
+# Dependencies downloaded by cargo-vendor
+.cargo/vendor/
+
+# Generated config
+config.toml.default
