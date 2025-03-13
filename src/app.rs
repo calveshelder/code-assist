@@ -36,9 +36,18 @@ impl App {
 
         loop {
             let input = self.prompt.get_input()?;
+            let input_trimmed = input.trim();
 
-            if input.trim().to_lowercase() == "exit" {
+            if input_trimmed.to_lowercase() == "exit" {
                 break;
+            }
+
+            // Handle special commands
+            if input_trimmed == "/init" {
+                let cwd = std::env::current_dir()?;
+                let memory = crate::memory::ProjectMemory::new();
+                memory.init_caulk_file(&cwd)?;
+                continue;
             }
 
             if let Err(e) = self.execute_command(&input).await {
@@ -52,23 +61,40 @@ impl App {
 
     pub async fn execute_command(&self, command: &str) -> Result<()> {
         println!("{}", "Analyzing request...".bright_blue());
-
+        
         // Gather context from the codebase
-        let context = self.context_manager.gather_context(command)?;
-
+        let context = self.gather_context(command)?;
+        
         // Send to LLM for interpretation
-        let llm_response = self
-            .llm_client
-            .process_command(command, &context)
-            .await
+        let llm_response = self.llm_client.process_command(command, &context).await
             .context("Failed to process command with LLM")?;
-
-        // Add this line for debugging
-        println!("Raw LLM response: {}", llm_response);
-
+        
         // Execute the interpreted command
         self.command_executor.execute(&llm_response).await?;
-
+        
         Ok(())
+    }
+    
+    // New method to gather context with project memory
+    fn gather_context(&self, command: &str) -> Result<String> {
+        // Load project memory (returns a new instance without modifying self)
+        let loaded_memory = self.context_manager.project_memory.load()?;
+        
+        // Start building context
+        let mut context = String::new();
+        
+        // Add project memory if available
+        let memory = loaded_memory.get_memory();
+        if !memory.is_empty() {
+            context.push_str("# Project Memory\n");
+            context.push_str(memory);
+            context.push_str("\n\n");
+        }
+        
+        // Get the regular code context
+        let code_context = self.context_manager.gather_context(command)?;
+        context.push_str(&code_context);
+        
+        Ok(context)
     }
 }

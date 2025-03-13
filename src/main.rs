@@ -10,6 +10,7 @@ mod git;
 mod fs;
 mod analysis;
 mod commands;
+mod memory;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,6 +50,9 @@ enum Commands {
         #[arg(required = true)]
         command: Vec<String>,
     },
+
+    /// Initialize a CAULK.md file in the current directory
+    Init,
 }
 
 #[tokio::main]
@@ -74,8 +78,14 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Exec { command }) => {
             let command_str = command.join(" ");
-            let app = app::App::new(config)?;
+            let mut app = app::App::new(config)?;  // Made app mutable
             app.execute_command(&command_str).await?;
+            return Ok(());
+        }
+        Some(Commands::Init) => {
+            let cwd = std::env::current_dir()?;
+            let memory = memory::ProjectMemory::new();
+            memory.init_caulk_file(&cwd)?;
             return Ok(());
         }
         None => {

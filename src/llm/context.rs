@@ -1,28 +1,34 @@
 use crate::fs::search::CodeSearch;
 use anyhow::Result;
 use std::path::Path;
+use crate::memory::ProjectMemory;
 
 pub struct ContextManager {
     code_search: CodeSearch,
+    pub project_memory: ProjectMemory,  // Made public
 }
 
 impl ContextManager {
     pub fn new() -> Self {
         Self {
             code_search: CodeSearch::new(),
+            project_memory: ProjectMemory::new(),
         }
     }
     
     pub fn gather_context(&self, command: &str) -> Result<String> {
+        // No longer trying to load project memory here
+        // That's now handled in App::gather_context
+        
+        // Get relevant file content based on keywords
+        let mut context = String::new();
+        
         // Analyze the command to determine what context is needed
         let keywords = self.extract_keywords(command);
         
         // Get the current working directory
         let cwd = std::env::current_dir()?;
-        
-        // Get relevant file content based on keywords
-        let mut context = String::new();
-        
+
         // Add workspace information
         context.push_str(&format!("Working directory: {}\n\n", cwd.display()));
         

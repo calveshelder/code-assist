@@ -107,17 +107,38 @@ impl CommandExecutor {
     }
 
     fn handle_edit_file(&self, details: &Value) -> Result<()> {
-        let file_path = PathBuf::from(
-            details
-                .get("file_path")
-                .and_then(|p| p.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing file_path in edit_file action"))?,
-        );
+    // First, determine the file path from either "file_path" or "file" field
+    let file_path = if let Some(path) = details.get("file_path").and_then(|p| p.as_str()) {
+        PathBuf::from(path)
+    } else if let Some(path) = details.get("file").and_then(|p| p.as_str()) {
+        PathBuf::from(path)
+    } else {
+        return Err(anyhow::anyhow!("Missing file path in edit_file action"));
+    };
 
-        let edit_type = details
-            .get("edit_type")
-            .and_then(|t| t.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing edit_type in edit_file action"))?;
+    // Now determine what kind of edit operation this is
+    if details.get("content").is_some() {
+        // This is a full content replacement
+        let content = details.get("content").and_then(|c| c.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Content field exists but is not a string"))?;
+            
+        println!("{} Replacing entire content in {}", "✓".bright_green(), file_path.display());
+        
+        // Make sure the directory exists
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+        }
+        
+        // Write the new content
+        std::fs::write(&file_path, content)
+            .with_context(|| format!("Failed to write to file: {}", file_path.display()))?;
+            
+        return Ok(());
+    } else if details.get("edit_type").is_some() {
+        // This is a partial edit operation
+        let edit_type = details.get("edit_type").and_then(|t| t.as_str())
+            .ok_or_else(|| anyhow::anyhow!("edit_type field exists but is not a string"))?;
 
         match edit_type {
             "replace" => {
@@ -205,9 +226,13 @@ impl CommandExecutor {
             }
             _ => return Err(anyhow::anyhow!("Unknown edit_type: {}", edit_type)),
         }
-
-        Ok(())
+        
+        return Ok(());
+    } else {
+        // Neither content nor edit_type exists
+        return Err(anyhow::anyhow!("Missing both content and edit_type in edit_file action"));
     }
+}
 
     async fn handle_execute_command(&self, details: &Value) -> Result<()> {
         let command_str = details
