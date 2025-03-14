@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Exec { command }) => {
             let command_str = command.join(" ");
-            let mut app = app::App::new(config)?;  // Made app mutable
+            let app = app::App::new(config)?;
             app.execute_command(&command_str).await?;
             return Ok(());
         }

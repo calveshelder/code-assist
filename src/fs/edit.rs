@@ -74,7 +74,7 @@ impl FileEditor {
         let mut result = String::new();
         
         // Add lines before the replacement
-        for (i, line) in lines.iter().enumerate().take(start_line - 1) {
+        for (_i, line) in lines.iter().enumerate().take(start_line - 1) {
             result.push_str(line);
             result.push('\n');
         }
@@ -104,7 +104,7 @@ impl FileEditor {
         let mut result = String::new();
         
         // Add lines before the insertion point
-        for (i, line) in lines.iter().enumerate().take(line_num - 1) {
+        for (_i, line) in lines.iter().enumerate().take(line_num - 1) {
             result.push_str(line);
             result.push('\n');
         }
@@ -134,7 +134,7 @@ impl FileEditor {
         let mut result = String::new();
         
         // Add lines before the deletion
-        for (i, line) in lines.iter().enumerate().take(start_line - 1) {
+        for (_i, line) in lines.iter().enumerate().take(start_line - 1) {
             result.push_str(line);
             result.push('\n');
         }

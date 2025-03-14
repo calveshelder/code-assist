@@ -2,7 +2,7 @@ use crate::fs::edit::{FileEdit, FileEditor};
 use crate::git::commands::GitCommands;
 use anyhow::{Context, Result};
 use colored::Colorize;
-use serde_json::{from_str, Value};
+use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -117,9 +117,9 @@ impl CommandExecutor {
     };
 
     // Now determine what kind of edit operation this is
-    if details.get("content").is_some() {
+    if let Some(content_value) = details.get("content") {
         // This is a full content replacement
-        let content = details.get("content").and_then(|c| c.as_str())
+        let content = content_value.as_str()
             .ok_or_else(|| anyhow::anyhow!("Content field exists but is not a string"))?;
             
         println!("{} Replacing entire content in {}", "✓".bright_green(), file_path.display());
@@ -135,9 +135,38 @@ impl CommandExecutor {
             .with_context(|| format!("Failed to write to file: {}", file_path.display()))?;
             
         return Ok(());
-    } else if details.get("edit_type").is_some() {
+    } else if let Some(append_value) = details.get("append") {
+        // This is an append operation
+        let content_to_append = append_value.as_str()
+            .ok_or_else(|| anyhow::anyhow!("Append field exists but is not a string"))?;
+            
+        println!("{} Appending content to {}", "✓".bright_green(), file_path.display());
+        
+        // Make sure the directory exists
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+        }
+        
+        // Read existing content if file exists
+        let existing_content = if file_path.exists() {
+            std::fs::read_to_string(&file_path)
+                .with_context(|| format!("Failed to read file: {}", file_path.display()))?
+        } else {
+            String::new()
+        };
+        
+        // Append new content
+        let new_content = format!("{}{}", existing_content, content_to_append);
+        
+        // Write the combined content
+        std::fs::write(&file_path, new_content)
+            .with_context(|| format!("Failed to write to file: {}", file_path.display()))?;
+            
+        return Ok(());
+    } else if let Some(edit_type_value) = details.get("edit_type") {
         // This is a partial edit operation
-        let edit_type = details.get("edit_type").and_then(|t| t.as_str())
+        let edit_type = edit_type_value.as_str()
             .ok_or_else(|| anyhow::anyhow!("edit_type field exists but is not a string"))?;
 
         match edit_type {
@@ -229,8 +258,28 @@ impl CommandExecutor {
         
         return Ok(());
     } else {
-        // Neither content nor edit_type exists
-        return Err(anyhow::anyhow!("Missing both content and edit_type in edit_file action"));
+        // For simple cases where the LLM might not provide all details,
+        // check if there's text field which we can use as content
+        if let Some(text_value) = details.get("text") {
+            if let Some(text) = text_value.as_str() {
+                println!("{} Using text field as content for {}", "✓".bright_green(), file_path.display());
+                
+                // Make sure the directory exists
+                if let Some(parent) = file_path.parent() {
+                    std::fs::create_dir_all(parent)
+                        .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+                }
+                
+                // Write the content
+                std::fs::write(&file_path, text)
+                    .with_context(|| format!("Failed to write to file: {}", file_path.display()))?;
+                    
+                return Ok(());
+            }
+        }
+        
+        // None of the recognized edit patterns found
+        return Err(anyhow::anyhow!("Missing content, append, text, or edit_type in edit_file action"));
     }
 }
 
@@ -314,7 +363,7 @@ impl CommandExecutor {
 
                 let file_strs: Vec<&str> = files.iter().filter_map(|f| f.as_str()).collect();
 
-                let result = GitCommands::add(&current_dir, &file_strs)?;
+                let _result = GitCommands::add(&current_dir, &file_strs)?;
                 println!("{} Files added to staging area", "✓".bright_green());
             }
             _ => return Err(anyhow::anyhow!("Unknown git operation: {}", operation)),
